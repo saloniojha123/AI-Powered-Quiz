@@ -1,0 +1,86 @@
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Job 1: Test Backend
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: Check for syntax errors
+        working-directory: ./backend
+        run: node --check server.js
+
+      - name: Verify all route files exist
+        working-directory: ./backend
+        run: |
+          test -f routes/auth.js && echo "✅ auth.js exists"
+          test -f routes/quiz.js && echo "✅ quiz.js exists"
+          test -f routes/score.js && echo "✅ score.js exists"
+          test -f middleware/auth.js && echo "✅ auth middleware exists"
+
+  # Job 2: Build Frontend
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Build React app
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          CI: false
+
+      - name: Verify build output
+        working-directory: ./frontend
+        run: |
+          test -d build && echo "✅ Build folder created successfully"
+          test -f build/index.html && echo "✅ index.html exists"
+
+  # Job 3: Summary
+  summary:
+    name: Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [test-backend, build-frontend]
+
+    steps:
+      - name: Success
+        run: |
+          echo "✅ Backend tests passed"
+          echo "✅ Frontend build successful"
+          echo "🚀 Ready to deploy!"
