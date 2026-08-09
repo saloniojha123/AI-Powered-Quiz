@@ -24,6 +24,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Helper: Generate quiz from text using Groq
 const generateQuizFromText = async (text, topicTitle) => {
+    
     const prompt = `
 You are a quiz generator. Based on the following study notes, generate exactly 10 multiple choice questions.
 
@@ -33,9 +34,9 @@ ${text}
 Rules:
 - Each question must have exactly 4 options
 - Only one option is correct
-- correctOptionIndex must be 0, 1, 2, or 3 (index of correct option)
-- Questions should test understanding, not just memorization
-- Return ONLY valid JSON, no extra text, no markdown formatting
+- correctOptionIndex must be 0, 1, 2, or 3
+- explanation must be 1-2 sentences explaining WHY the correct answer is right
+- Return ONLY valid JSON, no extra text, no markdown
 
 Return this exact JSON format:
 {
@@ -43,7 +44,8 @@ Return this exact JSON format:
     {
       "questionText": "Question here?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctOptionIndex": 0
+      "correctOptionIndex": 0,
+      "explanation": "This is correct because..."
     }
   ]
 }

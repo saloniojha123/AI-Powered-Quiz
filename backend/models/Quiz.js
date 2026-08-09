@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const QuizSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -13,10 +12,10 @@ const QuizSchema = new mongoose.Schema({
     questions: [
         {
             questionText: { type: String, required: true },
-            options: [{ type: String, required: true }], 
-            correctOptionIndex: { type: Number, required: true } 
+            options: [{ type: String, required: true }],
+            correctOptionIndex: { type: Number, required: true },
+            explanation: { type: String, default: '' }
         }
     ]
 }, { timestamps: true });
-
 module.exports = mongoose.model('Quiz', QuizSchema);
