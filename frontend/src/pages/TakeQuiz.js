@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import API from '../api';
@@ -18,50 +19,48 @@ export default function TakeQuiz() {
     const question = quiz?.questions[current];
     const isLast = current === quiz?.questions.length - 1;
 
- // eslint-disable-next-line react-hooks/exhaustive-deps
-useEffect(() => {
-    if (!quiz) return;
-    if (!timerActive) return;
-    if (timeLeft === 0) {
-        setTimerActive(false);
-        const newAnswers = [...answers, -1];
-        if (isLast) {
-            const score = newAnswers.filter(
-                (ans, i) => ans === quiz.questions[i].correctOptionIndex
-            ).length;
-            API.post('/score/submit', {
-                quizId: quiz.id,
-                score,
-                totalQuestions: quiz.questions.length
-            }).then(() => {
-                navigate('/results', {
-                    state: {
-                        score,
-                        totalQuestions: quiz.questions.length,
-                        answers: newAnswers,
-                        quiz
-                    }
+    useEffect(() => {
+        if (!quiz) return;
+        if (!timerActive) return;
+        if (timeLeft === 0) {
+            setTimerActive(false);
+            const newAnswers = [...answers, -1];
+            if (isLast) {
+                const score = newAnswers.filter(
+                    (ans, i) => ans === quiz.questions[i].correctOptionIndex
+                ).length;
+                API.post('/score/submit', {
+                    quizId: quiz.id,
+                    score,
+                    totalQuestions: quiz.questions.length
+                }).then(() => {
+                    navigate('/results', {
+                        state: {
+                            score,
+                            totalQuestions: quiz.questions.length,
+                            answers: newAnswers,
+                            quiz
+                        }
+                    });
                 });
-            });
-        } else {
-            setAnswers(newAnswers);
-            setCurrent(c => c + 1);
-            setSelected(null);
-            setShowExplanation(false);
+            } else {
+                setAnswers(newAnswers);
+                setCurrent(c => c + 1);
+                setSelected(null);
+                setShowExplanation(false);
+            }
+            return;
         }
-        return;
-    }
-    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearTimeout(timer);
-}, [timeLeft, timerActive]);
+        const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [timeLeft, timerActive]);
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
-useEffect(() => {
-    if (!quiz) return;
-    setTimeLeft(30);
-    setTimerActive(true);
-    setShowExplanation(false);
-}, [current]);
+    useEffect(() => {
+        if (!quiz) return;
+        setTimeLeft(30);
+        setTimerActive(true);
+        setShowExplanation(false);
+    }, [current]);
 
     if (!quiz) { navigate('/dashboard'); return null; }
 
