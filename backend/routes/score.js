@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Score = require('../models/Score');
 const Quiz = require('../models/Quiz');
+const Groq = require('groq-sdk');
 
 // @route POST /api/score/submit
 // @desc Submit score after completing a quiz
@@ -112,11 +113,76 @@ router.get('/stats', auth, async (req, res) => {
             totalQuizzes: scores.length,
             averageScore: `${averageScore}%`,
             bestScore: `${bestScore}%`,
-            bestTopic: bestTopic.topic
+            bestTopic: bestTopic?.topic || 'N/A'
         });
 
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   POST /api/score/analyze
+// @desc    AI analyzes quiz performance and identifies weak topics
+// @access  Private
+router.post('/analyze', auth, async (req, res) => {
+    try {
+        const { quizId, answers, questions } = req.body;
+
+        if (!questions || !answers) {
+            return res.status(400).json({ message: 'Missing questions or answers payload' });
+        }
+
+        if (!process.env.GROQ_API_KEY) {
+            console.error("GROQ_API_KEY missing in environment variables!");
+            return res.status(500).json({ message: "Server configuration error: GROQ_API_KEY missing." });
+        }
+
+        // Format quiz data for Groq
+        const performance = questions.map((q, i) => ({
+            question: q.questionText,
+            correct: answers[i] === q.correctOptionIndex,
+            userAnswer: q.options[answers[i]] || 'Skipped',
+            correctAnswer: q.options[q.correctOptionIndex]
+        }));
+
+        const correctCount = performance.filter(p => p.correct).length;
+
+        // Groq API Call
+        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+        const prompt = `You are an educational AI assistant. Analyze this student's quiz performance.
+Quiz Performance:
+${performance.map((p, i) => `Q${i + 1}: ${p.question} | Answered: ${p.userAnswer} | Correct: ${p.correctAnswer} | Result: ${p.correct ? 'CORRECT' : 'WRONG'}`).join('\n')}
+
+Return strictly raw JSON format without markdown code fences:
+{
+  "strongTopics": ["topic1", "topic2"],
+  "weakTopics": ["topic1", "topic2"],
+  "recommendations": ["advice 1", "advice 2"],
+  "overallFeedback": "One encouraging sentence"
+}`;
+
+        const completion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.3
+        });
+
+        const rawContent = completion.choices[0].message.content;
+        const cleanedContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        const analysis = JSON.parse(cleanedContent);
+
+        res.json({
+            score: correctCount,
+            totalQuestions: questions.length,
+            percentage: Math.round((correctCount / questions.length) * 100),
+            analysis
+        });
+
+    } catch (error) {
+        console.error('Analysis error:', error);
+        res.status(500).json({ message: 'Analysis failed', error: error.message });
     }
 });
 
