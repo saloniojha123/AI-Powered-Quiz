@@ -6,10 +6,10 @@ const Groq = require('groq-sdk');
 const auth = require('../middleware/auth');
 const Quiz = require('../models/Quiz');
 
-// Multer setup - store PDF in memory
+// Multer setup
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') {
             cb(null, true);
@@ -23,13 +23,18 @@ const upload = multer({
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Helper: Generate quiz from text using Groq
-const generateQuizFromText = async (text, topicTitle) => {
-    
+const generateQuizFromText = async (text, difficulty) => {
+
     const prompt = `
 You are a quiz generator. Based on the following study notes, generate exactly 10 multiple choice questions.
 
 Study Notes:
 ${text}
+
+Difficulty Level: ${difficulty}
+${difficulty === 'easy' ? '- Simple factual questions, clear and straightforward options, basic concepts only' : ''}
+${difficulty === 'medium' ? '- Requires understanding of concepts, some application-based questions, moderately tricky options' : ''}
+${difficulty === 'hard' ? '- Deep analysis required, very similar options that are hard to distinguish, edge cases and exceptions tested' : ''}
 
 Rules:
 - Each question must have exactly 4 options
@@ -68,6 +73,7 @@ router.post('/generate', auth, upload.single('pdf'), async (req, res) => {
     try {
         let textContent = '';
         const topicTitle = req.body.topicTitle || 'My Quiz';
+        const difficulty = req.body.difficulty || 'medium';
 
         if (req.file) {
             const pdfData = await pdfParse(req.file.buffer);
@@ -82,12 +88,13 @@ router.post('/generate', auth, upload.single('pdf'), async (req, res) => {
             return res.status(400).json({ message: 'Content too short. Please provide more study notes.' });
         }
 
-        console.log('🤖 Generating quiz with Groq...');
-        const quizData = await generateQuizFromText(textContent, topicTitle);
+        console.log(`🤖 Generating ${difficulty} quiz with Groq...`);
+        const quizData = await generateQuizFromText(textContent, difficulty);
 
         const quiz = await Quiz.create({
             userId: req.user.id,
             topicTitle,
+            difficulty,
             questions: quizData.questions
         });
 
@@ -98,6 +105,7 @@ router.post('/generate', auth, upload.single('pdf'), async (req, res) => {
             quiz: {
                 id: quiz._id,
                 topicTitle: quiz.topicTitle,
+                difficulty: quiz.difficulty,
                 questions: quiz.questions,
                 totalQuestions: quiz.questions.length
             }
@@ -113,7 +121,7 @@ router.post('/generate', auth, upload.single('pdf'), async (req, res) => {
 router.get('/my-quizzes', auth, async (req, res) => {
     try {
         const quizzes = await Quiz.find({ userId: req.user.id })
-            .select('topicTitle createdAt questions')
+            .select('topicTitle difficulty createdAt questions')
             .sort({ createdAt: -1 });
 
         res.json({
@@ -121,6 +129,7 @@ router.get('/my-quizzes', auth, async (req, res) => {
             quizzes: quizzes.map(q => ({
                 id: q._id,
                 topicTitle: q.topicTitle,
+                difficulty: q.difficulty,
                 totalQuestions: q.questions.length,
                 createdAt: q.createdAt
             }))

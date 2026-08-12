@@ -9,6 +9,11 @@ const QuizSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+      difficulty: {
+        type: String,
+        enum: ['easy', 'medium', 'hard'],
+        default: 'medium'
+    },
     questions: [
         {
             questionText: { type: String, required: true },
