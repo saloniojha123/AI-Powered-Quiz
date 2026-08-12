@@ -104,6 +104,18 @@ export default function Dashboard() {
                             ✨ Generate New Quiz
                         </button>
 
+                             <button
+                                style={{
+                                ...styles.leaderboardBtn,
+                                     }}
+                                  onClick={() => navigate('/leaderboard')}
+                                  >
+                                    🏆 View Leaderboard
+                                 </button>
+                                
+                                  
+                                 
+
                         {/* History */}
                         <h2 style={styles.sectionTitle}>Recent Quizzes</h2>
                         {history.length === 0 ? (
@@ -176,6 +188,21 @@ const styles = {
         cursor: 'pointer', marginBottom: '32px', transition: 'all 0.3s ease',
         letterSpacing: '0.5px',
     },
+
+    leaderboardBtn: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '14px',
+    border: '1px solid #7c3aed',
+    background: 'transparent',
+    color: '#a78bfa',
+    fontSize: '16px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    marginBottom: '32px',
+    transition: 'all 0.3s ease'
+    },
+
     sectionTitle: { fontSize: '18px', fontWeight: '600', color: '#e2e8f0', marginBottom: '16px' },
     emptyState: {
         textAlign: 'center', padding: '40px', background: '#0d0d1a',

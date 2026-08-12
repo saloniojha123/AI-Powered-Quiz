@@ -186,4 +186,54 @@ Return strictly raw JSON format without markdown code fences:
     }
 });
 
+// @route GET /api/score/leaderboard
+// @desc Get top 10 users by average score
+// @access Private
+router.get('/leaderboard', auth, async (req, res) => {
+    try {
+        const scores = await Score.find()
+            .populate('userId', 'username')
+            .populate('quizId', 'topicTitle difficulty');
+
+        // Group by user
+        const userStats = {};
+        scores.forEach(s => {
+            if (!s.userId) return;
+            const uid = s.userId._id.toString();
+            if (!userStats[uid]) {
+                userStats[uid] = {
+                    username: s.userId.username,
+                    totalQuizzes: 0,
+                    totalScore: 0,
+                    totalQuestions: 0,
+                    bestScore: 0
+                };
+            }
+            const pct = Math.round((s.score / s.totalQuestions) * 100);
+            userStats[uid].totalQuizzes += 1;
+            userStats[uid].totalScore += pct;
+            userStats[uid].totalQuestions += s.totalQuestions;
+            if (pct > userStats[uid].bestScore) {
+                userStats[uid].bestScore = pct;
+            }
+        });
+
+        // Convert to array and sort by average score
+        const leaderboard = Object.values(userStats)
+            .map(u => ({
+                username: u.username,
+                totalQuizzes: u.totalQuizzes,
+                averageScore: Math.round(u.totalScore / u.totalQuizzes),
+                bestScore: u.bestScore
+            }))
+            .sort((a, b) => b.averageScore - a.averageScore)
+            .slice(0, 10);
+
+        res.json({ leaderboard });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 module.exports = router;
