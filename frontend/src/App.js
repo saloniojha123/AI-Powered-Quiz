@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import GenerateQuiz from './pages/GenerateQuiz';
 import TakeQuiz from './pages/TakeQuiz';
 import Results from './pages/Results';
+import SharedQuiz from './pages/SharedQuiz';
 
 const PrivateRoute = ({ children }) => {
     const { token } = useAuth();
@@ -23,6 +24,7 @@ function AppRoutes() {
             <Route path="/generate" element={<PrivateRoute><GenerateQuiz /></PrivateRoute>} />
             <Route path="/quiz/:id" element={<PrivateRoute><TakeQuiz /></PrivateRoute>} />
             <Route path="/results" element={<PrivateRoute><Results /></PrivateRoute>} />
+            <Route path="/take-shared/:id" element={<SharedQuiz />} />
         </Routes>
     );
 }

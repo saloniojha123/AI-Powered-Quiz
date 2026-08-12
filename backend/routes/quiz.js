@@ -159,4 +159,22 @@ router.get('/:id', auth, async (req, res) => {
     }
 });
 
+// @route GET /api/quiz/share/:id
+// @desc Get a quiz by ID without auth (for sharing)
+// @access Public
+router.get('/share/:id', async (req, res) => {
+    try {
+        const quiz = await Quiz.findById(req.params.id)
+            .select('topicTitle difficulty questions');
+
+        if (!quiz) {
+            return res.status(404).json({ message: 'Quiz not found' });
+        }
+
+        res.json({ quiz });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 module.exports = router;
