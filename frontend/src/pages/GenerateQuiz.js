@@ -4,6 +4,7 @@ import API from '../api';
 
 export default function GenerateQuiz() {
     const [mode, setMode] = useState('text');
+    const [youtubeUrl, setYoutubeUrl] = useState('');
     const [text, setText] = useState('');
     const [pdf, setPdf] = useState(null);
     const [topicTitle, setTopicTitle] = useState('');
@@ -12,31 +13,37 @@ export default function GenerateQuiz() {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleGenerate = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            let res;
-            if (mode === 'pdf' && pdf) {
-                const formData = new FormData();
-                formData.append('pdf', pdf);
-                formData.append('topicTitle', topicTitle || 'My Quiz');
-                formData.append('difficulty', difficulty);
-                res = await API.post('/quiz/generate', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
-            } else {
-                res = await API.post('/quiz/generate', {
-                    text,
-                    topicTitle: topicTitle || 'My Quiz',
-                    difficulty
-                });
-            }
-            navigate(`/quiz/${res.data.quiz.id}`, { state: { quiz: res.data.quiz } });
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to generate quiz');
+     const handleGenerate = async () => {
+    setLoading(true);
+    setError('');
+    try {
+        let res;
+        if (mode === 'pdf' && pdf) {
+            const formData = new FormData();
+            formData.append('pdf', pdf);
+           formData.append('topicTitle', topicTitle || pdf?.name?.replace('.pdf', '') || 'My Quiz');
+            formData.append('difficulty', difficulty);
+            res = await API.post('/quiz/generate', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        } else if (mode === 'youtube') {
+            res = await API.post('/quiz/generate-from-youtube', {
+                youtubeUrl,
+                topicTitle: topicTitle || 'YouTube Quiz',
+                difficulty
+            });
+        } else {
+            res = await API.post('/quiz/generate', {
+                text,
+                topicTitle: topicTitle || 'My Quiz',
+                difficulty
+            });
         }
-        setLoading(false);
+        navigate(`/quiz/${res.data.quiz.id}`, { state: { quiz: res.data.quiz } });
+    } catch (err) {
+        setError(err.response?.data?.message || 'Failed to generate quiz');
+    }
+    setLoading(false);
     };
 
     const difficultyConfig = {
@@ -68,6 +75,14 @@ export default function GenerateQuiz() {
                     >
                         📄 Upload PDF
                     </button>
+
+                      <button
+                       style={mode === 'youtube' ? styles.toggleActive : styles.toggleBtn}
+                        onClick={() => setMode('youtube')}
+                        >
+                       🎬 YouTube
+                       </button>
+
                 </div>
 
                 {/* Topic Input */}
@@ -107,29 +122,58 @@ export default function GenerateQuiz() {
                     </div>
                 </div>
 
-                {/* Text or PDF input */}
-                {mode === 'text' ? (
-                    <textarea
-                        style={styles.textarea}
-                        placeholder="Paste your study notes here (minimum 100 characters)..."
-                        value={text}
-                        onChange={e => setText(e.target.value)}
-                        rows={8}
-                    />
-                ) : (
-                    <div style={styles.uploadArea}>
-                        <input
-                            type="file"
-                            accept=".pdf"
-                            onChange={e => setPdf(e.target.files[0])}
-                            style={{ display: 'none' }}
-                            id="pdfInput"
-                        />
-                        <label htmlFor="pdfInput" style={styles.uploadLabel}>
-                            {pdf ? '✅ ' + pdf.name : '📁 Click to upload PDF'}
-                        </label>
-                    </div>
-                )}
+
+
+        {mode === 'youtube' && (
+    <div style={styles.youtubeContainer}>
+        <input
+            style={styles.input}
+            placeholder="Paste YouTube URL (e.g. https://youtube.com/watch?v=...)"
+            value={youtubeUrl}
+            onChange={e => setYoutubeUrl(e.target.value)}
+        />
+        <div style={styles.youtubeTip}>
+            💡 Works with videos that have captions/subtitles enabled
+        </div>
+    </div>
+)}
+
+
+
+         
+         {/* Text or PDF input */}
+        {mode === 'text' && (
+          <textarea
+        style={styles.textarea}
+        placeholder="Paste your study notes here (minimum 100 characters)..."
+        value={text}
+        onChange={e => setText(e.target.value)}
+        rows={8}
+        />
+         )}
+
+
+        {mode === 'pdf' && (
+         <div style={styles.uploadArea}>
+        <input
+            type="file"
+            accept=".pdf"
+            onChange={e => {
+            const file = e.target.files[0];
+            setPdf(file);
+            if (!topicTitle) {
+             setTopicTitle(file.name.replace('.pdf', ''));
+             }
+            }}
+            style={{ display: 'none' }}
+            id="pdfInput"
+         />
+         <label htmlFor="pdfInput" style={styles.uploadLabel}>
+            {pdf ? '✅ ' + pdf.name : '📁 Click to upload PDF'}
+         </label>
+         </div>
+         )}
+              
 
                 {error && <div style={styles.error}>{error}</div>}
 
@@ -307,4 +351,15 @@ const styles = {
         textAlign: 'center',
         fontWeight: '500'
     }
+,
+    youtubeContainer: { marginBottom: '12px' },
+     youtubeTip: {
+    color: '#6b7280',
+    fontSize: '12px',
+    padding: '8px 12px',
+    background: '#0d0d1a',
+    borderRadius: '8px',
+    border: '1px solid #1e1b4b',
+    marginTop: '8px'
+}
 };

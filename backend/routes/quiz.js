@@ -5,6 +5,7 @@ const pdfParse = require('pdf-parse');
 const Groq = require('groq-sdk');
 const auth = require('../middleware/auth');
 const Quiz = require('../models/Quiz');
+const { YoutubeTranscript } = require('youtube-transcript');
 
 // Multer setup
 const upload = multer({
@@ -174,6 +175,77 @@ router.get('/share/:id', async (req, res) => {
         res.json({ quiz });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route POST /api/quiz/generate-from-youtube
+// @desc Generate quiz from YouTube video transcript
+// @access Private
+router.post('/generate-from-youtube', auth, async (req, res) => {
+    try {
+        const { youtubeUrl, topicTitle, difficulty } = req.body;
+
+        if (!youtubeUrl) {
+            return res.status(400).json({ message: 'Please provide a YouTube URL' });
+        }
+
+        // Extract video ID from URL
+        const videoIdMatch = youtubeUrl.match(
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/
+        );
+
+        if (!videoIdMatch) {
+            return res.status(400).json({ message: 'Invalid YouTube URL' });
+        }
+
+        const videoId = videoIdMatch[1];
+        console.log(`🎬 Fetching transcript for video: ${videoId}`);
+
+        // Fetch transcript
+        const transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
+
+        if (!transcriptData || transcriptData.length === 0) {
+            return res.status(400).json({ message: 'No transcript found for this video. Try a video with captions enabled.' });
+        }
+
+        // Convert transcript to text
+        const transcriptText = transcriptData
+            .map(t => t.text)
+            .join(' ')
+            .slice(0, 8000); // Limit to 8000 chars
+
+        console.log(`✅ Transcript fetched: ${transcriptText.length} characters`);
+
+        // Generate quiz
+        console.log(`🤖 Generating ${difficulty || 'medium'} quiz from YouTube transcript...`);
+        const quizData = await generateQuizFromText(transcriptText, difficulty || 'medium');
+
+        const quiz = await Quiz.create({
+            userId: req.user.id,
+            topicTitle: topicTitle || 'YouTube Quiz',
+            difficulty: difficulty || 'medium',
+            questions: quizData.questions
+        });
+
+        console.log(`✅ YouTube quiz generated: ${quiz._id}`);
+
+        res.status(201).json({
+            message: 'Quiz generated from YouTube video!',
+            quiz: {
+                id: quiz._id,
+                topicTitle: quiz.topicTitle,
+                difficulty: quiz.difficulty,
+                questions: quiz.questions,
+                totalQuestions: quiz.questions.length
+            }
+        });
+
+    } catch (error) {
+        console.error('YouTube quiz error:', error.message);
+        if (error.message.includes('Transcript is disabled')) {
+            return res.status(400).json({ message: 'This video has disabled captions. Try another video.' });
+        }
+        res.status(500).json({ message: 'Failed to generate quiz from YouTube', error: error.message });
     }
 });
 
